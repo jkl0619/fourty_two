@@ -7,7 +7,7 @@ import tweepy
 from clientKeys import *
 import optparse
 import hashlib, pickle
-#from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet
 
 
 # -s ip -p port -z size -t hashtag
@@ -21,10 +21,10 @@ parser.add_option('-t', dest='hashtag', help='The hashtag to filter')
 
 #initialize values from command line
 host = options.host
-port = options.port
-size = options.size
+port = int(options.port)
+size = int(options.size)
 hashtag = options.hashtag
-print("[Checkpoint] Listening for Tweets that contain: ", hashtag)
+print("[Checkpoint] Listening for Tweets that contain: " + hashtag)
 hashtag = hashtag.strip()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -40,7 +40,6 @@ auth.set_access_token(access_token, access_token_secret)
 
 
 #generate fernet key
-key = Fernet.generate_key()
 
 
 api = tweepy.API(auth)
@@ -49,33 +48,27 @@ class MyStreamListener(tweepy.StreamListener):
     def on_status(self, status):
         messages = status.text
         user = status.user.name
-        print("[Checkpoint] New Tweet: ", messages, " | User: ", user)
-        filteredMessage = messages.replace(hashtag, '')     #Gets rid of hashtag in the message
+        key = Fernet.generate_key()
+        print("[Checkpoint] New Tweet: " + messages + " | User: " + user)
+        filteredMessage = messages.replace(hashtag, '')    #Gets rid of hashtag in the message
         f = Fernet(key)
-        token = f.encrypt(b"%d" % filteredMessage)  #ciphered text
-        print("[Checkpoint] Encrypt: Generated Key: ", key)
-        print("| Ciphertext: %d", token)
+        token = f.encrypt(filteredMessage.encode('utf-8'))  #ciphered text
+        print("[Checkpoint] Encrypt: Generated Key: %s" % key)
+        print("| Ciphertext: %s" % token)
         m = hashlib.md5()
-        m.update("%d",token)
+        m.update(token)
         checksum = m.hexdigest()
-        print("[Checkpoint] Generated MD5 Checksum: %d", checksum)
-        pickleCheckSum = pickle.dumps("%d", checksum)
-        print("[Checkpoint] Connecting to %d on port %d", host, port)
-        #s.connect([host,port])
-        #s.send(b'%d',pickleCheckSum)
-        #data = s.recv(size)
+        print("[Checkpoint] Generated MD5 Checksum: " + checksum)
+        pickleCheckSum = pickle.dumps((key, token, checksum))
+        print("[Checkpoint] Connecting to %s on port %s" % (host, port))
+        s.connect((host,port))
+        s.send(pickleCheckSum)  #bytes
+        data = s.recv(size)
 
-        print("[Checkpoint] Sending data %d", pickleCheckSum)
+        print("[Checkpoint] Sending data %s" % pickleCheckSum)
 
 
 myStreamListener = MyStreamListener()
 myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener)
 myStream.filter(track=[hashtag])
 
-
-
-#s.connect((host,port))
-#s.send(b'Hello, world')
-#data = s.recv(size)
-#s.close()
-#print ('Received:', data)
