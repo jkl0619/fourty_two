@@ -6,7 +6,7 @@ import socket
 import tweepy
 from clientKeys import *
 import optparse
-import hashlib
+import hashlib, pickle
 #from cryptography.fernet import Fernet
 
 
@@ -27,7 +27,7 @@ hashtag = options.hashtag
 print("[Checkpoint] Listening for Tweets that contain: ", hashtag)
 hashtag = hashtag.strip()
 
-#s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #s.connect((host,port))
 #s.send(b'Hello, world')
 #data = s.recv(size)
@@ -53,10 +53,19 @@ class MyStreamListener(tweepy.StreamListener):
         filteredMessage = messages.replace(hashtag, '')     #Gets rid of hashtag in the message
         f = Fernet(key)
         token = f.encrypt(b"%d" % filteredMessage)  #ciphered text
-        print("[Checkpoint] Encrypt: Generated Key: ", token)
+        print("[Checkpoint] Encrypt: Generated Key: ", key)
+        print("| Ciphertext: %d", token)
         m = hashlib.md5()
         m.update("%d",token)
         checksum = m.hexdigest()
+        print("[Checkpoint] Generated MD5 Checksum: %d", checksum)
+        pickleCheckSum = pickle.dumps("%d", checksum)
+        print("[Checkpoint] Connecting to %d on port %d", host, port)
+        #s.connect([host,port])
+        #s.send(b'%d',pickleCheckSum)
+        #data = s.recv(size)
+
+        print("[Checkpoint] Sending data %d", pickleCheckSum)
 
 
 myStreamListener = MyStreamListener()
